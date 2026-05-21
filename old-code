@@ -1,0 +1,1968 @@
+import { useState, useEffect } from 'react';
+import { TrendingUp, Users, DollarSign, AlertTriangle, Briefcase, Building2, ChevronRight, Activity, Target, Shield, Zap, Trophy, Skull, Play, Pause } from 'lucide-react';
+import { LineChart, Line, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+const STRATEGIES = {
+  marketNeutral: {
+    name: 'Market Neutral',
+    returnPA: 8,
+    volatility: 5,
+    capacity: 2000,
+    correlation: 0.1,
+    cost: 50000
+  },
+  longShort: {
+    name: 'Long/Short Equity',
+    returnPA: 12,
+    volatility: 12,
+    capacity: 4000,
+    correlation: 0.6,
+    cost: 100000
+  },
+  globalMacro: {
+    name: 'Global Macro',
+    returnPA: 15,
+    volatility: 20,
+    capacity: 20000,
+    correlation: 0.3,
+    cost: 200000
+  },
+  creditArb: {
+    name: 'Credit Arbitrage',
+    returnPA: 10,
+    volatility: 8,
+    capacity: 8000,
+    correlation: 0.2,
+    cost: 150000
+  },
+  eventDriven: {
+    name: 'Event-Driven',
+    returnPA: 13,
+    volatility: 10,
+    capacity: 4000,
+    correlation: 0.5,
+    cost: 120000
+  },
+  quantMomentum: {
+    name: 'Quant Momentum',
+    returnPA: 20,
+    volatility: 25,
+    capacity: 4000,
+    correlation: 0.8,
+    cost: 250000
+  },
+  options: {
+    name: 'Options Strategy',
+    returnPA: 14,
+    volatility: 18,
+    capacity: 3200,
+    correlation: 0.4,
+    cost: 180000
+  },
+  distressed: {
+    name: 'Distressed Securities',
+    returnPA: 18,
+    volatility: 15,
+    capacity: 6000,
+    correlation: 0.25,
+    cost: 170000
+  },
+  activist: {
+    name: 'Activist',
+    returnPA: 16,
+    volatility: 14,
+    capacity: 3200,
+    correlation: 0.55,
+    cost: 200000
+  },
+  crypto: {
+    name: 'Crypto',
+    returnPA: 25,
+    volatility: 35,
+    capacity: 2000,
+    correlation: 0.3,
+    cost: 220000
+  }
+};
+const HIRES = {
+  cio: {
+    name: 'Chief Investment Officer',
+    cost: 500000,
+    description: 'Boosts all strategy returns by 50% (multiplicative).'
+  },
+  cfo: {
+    name: 'Chief Financial Officer',
+    cost: 350000,
+    description: 'Cuts GP administrative costs by 50%.'
+  },
+  coo: {
+    name: 'Chief Operating Officer',
+    cost: 400000,
+    description: 'Reduces monthly fund operating costs by 50%.'
+  },
+  compliance: {
+    name: 'Compliance Officer',
+    cost: 200000,
+    description: 'Prevents compliance decay and actively improves score over time.'
+  },
+  fundraiser: {
+    name: 'Investor Relations',
+    cost: 300000,
+    description: 'Unlocks consistent fundraising, doubling inflow potential.'
+  },
+  quantDev: {
+    name: 'Quant Developer',
+    cost: 450000,
+    description: 'Reduces portfolio volatility across all strategies by 35%.'
+  }
+};
+const MARKET_REGIMES = [{
+  name: 'Bull Market',
+  momentum: 1.1,
+  liquidity: 1.2,
+  volatility: 0.7,
+  fundraising: 1.3,
+  weight: 1.0
+}, {
+  name: 'Bear Market',
+  momentum: -0.4,
+  liquidity: -0.3,
+  volatility: 1.4,
+  fundraising: 0.7,
+  weight: 1.0
+}, {
+  name: 'Sideways Grind',
+  momentum: 0.0,
+  liquidity: 0.3,
+  volatility: 1.0,
+  fundraising: 1.0,
+  weight: 1.0
+}, {
+  name: 'Volatility Spike',
+  momentum: -0.1,
+  liquidity: 0.2,
+  volatility: 1.8,
+  fundraising: 0.6,
+  weight: 0.5
+}, {
+  name: 'Liquidity Crisis',
+  momentum: -0.6,
+  liquidity: -0.5,
+  volatility: 1.6,
+  fundraising: 0.4,
+  weight: 0.5
+}, {
+  name: 'Recovery Phase',
+  momentum: 0.8,
+  liquidity: 1.0,
+  volatility: 1.1,
+  fundraising: 1.2,
+  weight: 1.0
+}];
+const RANDOM_EVENTS = [{
+  name: 'SEC Inspection',
+  type: 'compliance',
+  impact: -200000,
+  complianceHit: 0.15
+}, {
+  name: 'GP Bank Account Hacked',
+  type: 'security',
+  impact: -500000,
+  performanceHit: 0.05
+}, {
+  name: 'Prime Broker Margin Call',
+  type: 'liquidity',
+  aumImpact: -300000,
+  liquidityStress: 0.3
+}, {
+  name: 'LP Due Diligence Wave',
+  type: 'admin',
+  impact: -100000,
+  timeStress: 0.2
+}, {
+  name: 'Flash Crash',
+  type: 'market',
+  aumImpact: -1500000,
+  lpConfidenceHit: 0.3
+}, {
+  name: 'Whistleblower Complaint',
+  type: 'compliance',
+  impact: -400000,
+  complianceHit: 0.35
+}, {
+  name: 'Trade Execution Error',
+  type: 'ops',
+  aumImpact: -250000,
+  performanceHit: 0.03
+}, {
+  name: 'Favorable Press Coverage',
+  type: 'positive',
+  grantsFundraisingBoost: true,
+  lpConfidenceBoost: 0.15
+}];
+const AUM_BOOST_EVENTS = [{
+  name: 'Competitor Blowup (Opportunity)',
+  type: 'positive',
+  aumBoost: 5000000
+}, {
+  name: 'Institutional Mandate Win',
+  type: 'positive',
+  aumBoost: 10000000,
+  lpConfidenceBoost: 0.2
+}];
+export default function App() {
+  const [selectedReturnMetric, setSelectedReturnMetric] = useState('ytd');
+  const [showHeaderStats, setShowHeaderStats] = useState(true);
+  const [allocationMethod, setAllocationMethod] = useState('capacity');
+  const [gameState, setGameState] = useState({
+    month: 0,
+    year: 1,
+    gpCash: 5000000,
+    aum: 50000000,
+    performance: 0,
+    cumulativePerformance: 0,
+    lpSatisfaction: 0.8,
+    complianceScore: 1.0,
+    activeFunds: ['longShort'],
+    team: [],
+    history: [],
+    marketRegime: MARKET_REGIMES[0],
+    gameOver: false,
+    victory: false,
+    lastEvent: null,
+    managementFees: 0,
+    performanceFees: 0,
+    hwm: 50000000,
+    fundraisingBoostMonths: 0,
+    lastEvents: [],
+    lastEventCost: 0,
+    yearStartAUM: 50000000,
+    accumulatedCapital: 0,
+    accumulatedEventCapital: 0,
+    accumulatedEventImpact: 0,
+    annualPerformance: 0,
+    lastYearPerformance: 0,
+    yearEndHistory: [],
+    collapseReason: null,
+    collapseDetails: null
+  });
+  const [selectedTab, setSelectedTab] = useState('overview');
+  const [showHireMenu, setShowHireMenu] = useState(false);
+  const [showFundMenu, setShowFundMenu] = useState(false);
+  const [autoPaused, setAutoPaused] = useState(true);
+  const [showEventModal, setShowEventModal] = useState(false);
+  const [showYearEndSummary, setShowYearEndSummary] = useState(false);
+  const [yearEndData, setYearEndData] = useState(null);
+  const [showTrackRecord, setShowTrackRecord] = useState(false);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const formatCurrency = value => {
+    if (Math.abs(value) >= 1e9) return `${(value / 1e9).toFixed(2)}B`;
+    if (Math.abs(value) >= 1e6) return `${(value / 1e6).toFixed(2)}M`;
+    if (Math.abs(value) >= 1e3) return `${(value / 1e3).toFixed(0)}K`;
+    return `${value.toFixed(0)}`;
+  };
+  const getRoundedValue = value => {
+    if (Math.abs(value) >= 1e9) return Math.round(value / 1e9 * 100) / 100 * 1e9;
+    if (Math.abs(value) >= 1e6) return Math.round(value / 1e6 * 100) / 100 * 1e6;
+    if (Math.abs(value) >= 1e3) return Math.round(value / 1e3) * 1e3;
+    return Math.round(value);
+  };
+  const calculateAUMShare = (fundKey, method = allocationMethod) => {
+    if (gameState.activeFunds.length === 0) return 0;
+    if (method === 'capacity') {
+      const totalCapacity = gameState.activeFunds.reduce((sum, fk) => sum + STRATEGIES[fk].capacity * 1000000, 0);
+      return totalCapacity > 0 ? STRATEGIES[fundKey].capacity * 1000000 / totalCapacity : 0;
+    } else if (method === 'volatility') {
+      const totalInverseVol = gameState.activeFunds.reduce((sum, fk) => sum + 1 / STRATEGIES[fk].volatility, 0);
+      return totalInverseVol > 0 ? 1 / STRATEGIES[fundKey].volatility / totalInverseVol : 0;
+    } else if (method === 'returns') {
+      const totalReturns = gameState.activeFunds.reduce((sum, fk) => sum + STRATEGIES[fk].returnPA, 0);
+      return totalReturns > 0 ? STRATEGIES[fundKey].returnPA / totalReturns : 0;
+    }
+    return 0;
+  };
+  const calculateFundOperationsCost = (method = allocationMethod) => {
+    return gameState.activeFunds.reduce((sum, fundKey) => {
+      const strategy = STRATEGIES[fundKey];
+      const baseCost = strategy.cost / 12;
+      const aumShare = calculateAUMShare(fundKey, method);
+      const aumForFund = gameState.aum * aumShare;
+      const strategyCapacity = strategy.capacity * 1000000;
+      const utilizationRatio = aumForFund / strategyCapacity;
+      const aumScaleMultiplier = 1 + utilizationRatio * 10;
+      const costAfterScaling = baseCost * aumScaleMultiplier;
+      const finalCostBeforeDiscount = Math.max(baseCost, costAfterScaling);
+      const cooDiscount = gameState.team.includes('coo') ? 0.5 : 1.0;
+      const finalCost = finalCostBeforeDiscount * cooDiscount;
+      return sum + finalCost;
+    }, 0);
+  };
+  const calculateMonthlyPerformance = () => {
+    let totalDollarReturn = 0;
+    let weightedVol = 0;
+    const totalCapacity = gameState.activeFunds.reduce((sum, fundKey) => {
+      return sum + STRATEGIES[fundKey].capacity * 1000000;
+    }, 0);
+    let totalAllocatedAUM = 0;
+    gameState.activeFunds.forEach(fundKey => {
+      const aumShare = calculateAUMShare(fundKey);
+      const allocatedAUM = gameState.aum * aumShare;
+      totalAllocatedAUM += allocatedAUM;
+    });
+    const capacityUtilization = totalAllocatedAUM / totalCapacity;
+    let capacityPenalty = 0;
+    if (capacityUtilization > 1.0) {
+      capacityPenalty = (capacityUtilization - 1.0) * 0.5;
+    } else if (capacityUtilization > 0.8) {
+      capacityPenalty = (capacityUtilization - 0.8) * 0.2;
+    }
+    gameState.activeFunds.forEach(fundKey => {
+      const strategy = STRATEGIES[fundKey];
+      const aumShare = calculateAUMShare(fundKey);
+      const allocatedAUM = gameState.aum * aumShare;
+      const baseReturn = strategy.returnPA / 12 / 100;
+      const cioBoost = gameState.team.includes('cio') ? 1.5 : 1.0;
+      const expectedReturn = baseReturn * cioBoost;
+      const momentumSkew = gameState.marketRegime.momentum;
+      const randomFactor = Math.random();
+      const skewedRandom = momentumSkew > 0 ? Math.pow(randomFactor, 1 / (1 + momentumSkew * 0.5)) : momentumSkew < 0 ? 1 - Math.pow(1 - randomFactor, 1 / (1 + Math.abs(momentumSkew) * 0.5)) : randomFactor;
+      const effectiveVolatility = gameState.team.includes('quantDev') ? strategy.volatility * 0.65 : strategy.volatility;
+      const volatilitySwing = (skewedRandom - 0.5) * 2 * effectiveVolatility / 100 * gameState.marketRegime.volatility;
+      const liquidityConsistency = Math.max(0.5, Math.min(1.5, 1 + gameState.marketRegime.liquidity * 0.3));
+      const consistencyAdjustedReturn = expectedReturn + volatilitySwing / liquidityConsistency;
+      const strategyReturn = consistencyAdjustedReturn - capacityPenalty / 12;
+      const cappedStrategyReturn = Math.max(-0.30, Math.min(0.30, strategyReturn));
+      const dollarReturn = allocatedAUM * cappedStrategyReturn;
+      totalDollarReturn += dollarReturn;
+      weightedVol += effectiveVolatility * aumShare;
+    });
+    const totalReturn = gameState.aum > 0 ? totalDollarReturn / gameState.aum : 0;
+    return {
+      return: totalReturn,
+      volatility: weightedVol,
+      capacityUtilization: capacityUtilization
+    };
+  };
+  const processTurn = () => {
+    if (gameState.gameOver) return;
+    const {
+      return: monthlyReturn,
+      capacityUtilization
+    } = calculateMonthlyPerformance();
+    const newAUM = gameState.aum * (1 + monthlyReturn);
+    let lpSatChange = 0;
+    if (monthlyReturn > 0.03) lpSatChange += 0.04;else if (monthlyReturn > 0.01) lpSatChange += 0.02;else if (monthlyReturn < -0.05) lpSatChange -= 0.08;else if (monthlyReturn < -0.02) lpSatChange -= 0.04;
+    if (gameState.annualPerformance > 0.15) lpSatChange += 0.03;else if (gameState.annualPerformance > 0.08) lpSatChange += 0.02;else if (gameState.annualPerformance < -0.10) lpSatChange -= 0.02;
+    if (gameState.yearEndHistory.length > 0) {
+      if (gameState.lastYearPerformance > 0.20) lpSatChange += 0.02;else if (gameState.lastYearPerformance > 0.10) lpSatChange += 0.01;else if (gameState.lastYearPerformance < -0.05) lpSatChange -= 0.01;
+    }
+    if (gameState.complianceScore > 0.8) lpSatChange += 0.01;else if (gameState.complianceScore < 0.3) lpSatChange -= 0.02;
+    if (gameState.team.includes('fundraiser')) {
+      lpSatChange += 0.015;
+    }
+    if (gameState.history.length >= 6) {
+      const recentMonths = gameState.history.slice(-6);
+      const positiveMonths = recentMonths.filter(h => h.performance > 0).length;
+      if (positiveMonths >= 5) lpSatChange += 0.02;else if (positiveMonths <= 1) lpSatChange -= 0.02;
+    }
+    const currentLPSat = Math.max(0, Math.min(1, gameState.lpSatisfaction + lpSatChange));
+    const salaries = gameState.team.reduce((sum, hire) => sum + HIRES[hire].cost / 12, 0);
+    const fundCosts = calculateFundOperationsCost();
+    const finalFundCosts = fundCosts;
+    const baseAdminCost = 8000 + gameState.activeFunds.length * 4000;
+    const increments = Math.floor((gameState.aum - 50000000) / 50000000);
+    const aumMultiplier = 1 + increments * 0.10;
+    let adminCosts = baseAdminCost * aumMultiplier;
+    if (gameState.team.includes('cfo')) {
+      adminCosts = adminCosts * 0.5;
+    }
+    const totalCosts = salaries + finalFundCosts + adminCosts;
+    let event = null;
+    let aumBoostEvent = null;
+    const totalMonthsPlayed = (gameState.year - 1) * 12 + gameState.month;
+    const eventProbability = totalMonthsPlayed < 12 ? 0.08 : 0.2;
+    const isYearEndMonth = gameState.month === 11;
+    let complianceChange = gameState.team.includes('compliance') ? 0.02 : -0.005;
+    const complianceAfterNaturalChange = Math.max(0, Math.min(1, gameState.complianceScore + complianceChange));
+    if (!isYearEndMonth && Math.random() < eventProbability) {
+      let availableEvents = [...RANDOM_EVENTS];
+      if (gameState.team.includes('compliance')) {
+        availableEvents = availableEvents.filter(e => !e.complianceHit);
+      } else {
+        if (complianceAfterNaturalChange <= 0.40) {
+          availableEvents = availableEvents.filter(e => !e.complianceHit || e.complianceHit < 0.35);
+        }
+        if (complianceAfterNaturalChange <= 0.20) {
+          availableEvents = availableEvents.filter(e => !e.complianceHit || e.complianceHit < 0.15);
+        }
+      }
+      if (gameState.lastEvents.length > 0 && gameState.lastEvents[0] === 'Whistleblower Complaint') {
+        availableEvents = availableEvents.filter(e => e.name !== 'Whistleblower Complaint');
+      }
+      if (gameState.lastEvents.length > 0 && gameState.lastEvents[0] === 'GP Bank Account Hacked') {
+        availableEvents = availableEvents.filter(e => e.name !== 'GP Bank Account Hacked');
+      }
+      if (gameState.lastEvents.length >= 2 && gameState.lastEvents[0] === 'SEC Inspection' && gameState.lastEvents[1] === 'SEC Inspection') {
+        availableEvents = availableEvents.filter(e => e.name !== 'SEC Inspection');
+      }
+      if (availableEvents.length > 0) {
+        event = availableEvents[Math.floor(Math.random() * availableEvents.length)];
+      }
+    }
+    const hasComplianceEvent = event && event.complianceHit && event.complianceHit > 0;
+    const baseAumEventChance = 0.05;
+    const boostedAumEventChance = gameState.fundraisingBoostMonths > 0 ? 0.25 : baseAumEventChance;
+    let accumulatedCapitalThisMonth = 0;
+    if (!isYearEndMonth && Math.random() < boostedAumEventChance) {
+      aumBoostEvent = AUM_BOOST_EVENTS[Math.floor(Math.random() * AUM_BOOST_EVENTS.length)];
+      accumulatedCapitalThisMonth += aumBoostEvent.aumBoost || 0;
+    }
+    const hasFundraiser = gameState.team.includes('fundraiser');
+    const totalFundraisingMultiplier = gameState.marketRegime.fundraising;
+    const capacityLimit = capacityUtilization >= 1.0;
+    const aumScaleFactor = gameState.aum < 100000000 ? 1.0 : gameState.aum < 500000000 ? 0.85 : gameState.aum < 1000000000 ? 0.70 : gameState.aum < 5000000000 ? 0.55 : 0.40;
+    if (!capacityLimit) {
+      if (hasFundraiser) {
+        if (currentLPSat > 0.6 && monthlyReturn > 0) {
+          accumulatedCapitalThisMonth += gameState.aum * 0.025 * totalFundraisingMultiplier * aumScaleFactor;
+        }
+      } else {
+        if (currentLPSat > 0.75 && monthlyReturn > 0.02) {
+          accumulatedCapitalThisMonth += gameState.aum * 0.015 * totalFundraisingMultiplier * aumScaleFactor;
+        }
+      }
+    }
+    let managementFee = 0;
+    let performanceFee = 0;
+    let redemptions = 0;
+    let newGPCash = gameState.gpCash - totalCosts;
+    const isEnteringNewYear = gameState.month === 11;
+    let yearEndRecord = null;
+    const updatedAccumulatedCapital = gameState.accumulatedCapital + accumulatedCapitalThisMonth;
+    let eventCapitalThisMonth = 0;
+    if (aumBoostEvent) {
+      eventCapitalThisMonth = aumBoostEvent.aumBoost || 0;
+    }
+    const updatedAccumulatedEventCapital = gameState.accumulatedEventCapital + eventCapitalThisMonth;
+    let eventImpactCash = 0;
+    let eventImpactAUM = 0;
+    let eventImpactPerf = 0;
+    let eventImpactLP = 0;
+    let eventImpactCompliance = 0;
+    let negativeEventImpactThisMonth = 0;
+    let eventCapitalInflow = 0;
+    let newFundraisingBoostMonths = Math.max(0, gameState.fundraisingBoostMonths - 1);
+    let newEventCost = 0;
+    if (event) {
+      eventImpactCash = event.impact || 0;
+      eventImpactAUM = event.aumImpact || 0;
+      eventImpactPerf = event.performanceHit || 0;
+      eventImpactLP = (event.lpConfidenceHit || 0) - (event.lpConfidenceBoost || 0);
+      eventImpactCompliance = gameState.team.includes('compliance') ? 0 : event.complianceHit || 0;
+      newEventCost = eventImpactCash < 0 ? Math.abs(eventImpactCash) : 0;
+      if (eventImpactAUM < 0) {
+        negativeEventImpactThisMonth = eventImpactAUM;
+      }
+      if (event.grantsFundraisingBoost) {
+        newFundraisingBoostMonths = 6;
+      }
+    }
+    if (aumBoostEvent) {
+      eventImpactLP -= aumBoostEvent.lpConfidenceBoost || 0;
+      eventCapitalInflow = aumBoostEvent.aumBoost || 0;
+    }
+    const updatedAccumulatedEventImpact = gameState.accumulatedEventImpact + negativeEventImpactThisMonth;
+    const displayEvent = hasComplianceEvent && event || aumBoostEvent || event;
+    const eventReturnImpact = gameState.aum > 0 ? eventImpactAUM / gameState.aum : 0;
+    const totalMonthReturn = monthlyReturn + eventReturnImpact;
+    const newAnnualPerformance = (1 + gameState.annualPerformance) * (1 + totalMonthReturn) - 1;
+    let finalAUM = Math.max(0, newAUM + eventImpactAUM + eventCapitalInflow);
+    if (isEnteringNewYear) {
+      const gpCashBeforeFees = gameState.gpCash - totalCosts;
+      const annualReturn = newAnnualPerformance;
+      const annualHurdleRate = 0.08;
+      const aumBeforeFees = finalAUM;
+      if (annualReturn > annualHurdleRate) {
+        const excessReturn = annualReturn - annualHurdleRate;
+        performanceFee = gameState.yearStartAUM * excessReturn * 0.2;
+      }
+      finalAUM = finalAUM - performanceFee;
+      managementFee = finalAUM * 0.02;
+      finalAUM = finalAUM - managementFee;
+      const aumBeforeRedemptions = finalAUM;
+      let redemptionRate = 0;
+      if (annualReturn < -0.2) {
+        redemptionRate = 0.25;
+      } else if (annualReturn < -0.1) {
+        redemptionRate = 0.12;
+      } else if (annualReturn < -0.05) {
+        redemptionRate = 0.04;
+      } else if (annualReturn < 0 && currentLPSat < 0.3) {
+        redemptionRate = 0.10;
+      } else if (annualReturn < 0 && currentLPSat < 0.5) {
+        redemptionRate = 0.05;
+      } else if (annualReturn >= 0 && currentLPSat < 0.3) {
+        redemptionRate = 0.03;
+      } else if (annualReturn >= 0 && currentLPSat < 0.5) {
+        redemptionRate = 0.01;
+      }
+      if (annualReturn >= 0 && redemptionRate > 0.10) {
+        redemptionRate = 0.10;
+      }
+      redemptions = aumBeforeRedemptions * redemptionRate;
+      finalAUM = aumBeforeRedemptions - redemptions;
+      finalAUM = finalAUM + updatedAccumulatedCapital;
+      finalAUM = Math.max(0, finalAUM);
+      newGPCash = gameState.gpCash + managementFee + performanceFee - totalCosts;
+      yearEndRecord = {
+        yearStartAUM: gameState.yearStartAUM,
+        aumBeforeFees,
+        aumBeforeCapital: aumBeforeFees,
+        aumBeforeRedemptions,
+        capitalDeployed: updatedAccumulatedCapital,
+        aumAfterCapital: aumBeforeRedemptions + updatedAccumulatedCapital,
+        aumAfterFees: finalAUM,
+        managementFee,
+        performanceFee,
+        redemptions,
+        redemptionRate,
+        eventCapital: updatedAccumulatedEventCapital,
+        organicCapital: updatedAccumulatedCapital - updatedAccumulatedEventCapital,
+        gpCashBefore: gpCashBeforeFees,
+        gpCashAfter: newGPCash,
+        annualReturn,
+        year: gameState.year
+      };
+      setYearEndData(yearEndRecord);
+    }
+    const newLastYearPerformance = isEnteringNewYear ? newAnnualPerformance : gameState.lastYearPerformance;
+    const newLPSat = Math.max(0, Math.min(1, currentLPSat - eventImpactLP));
+    const finalCompliance = Math.max(0, complianceAfterNaturalChange - eventImpactCompliance);
+    let newRegime = gameState.marketRegime;
+    if ((gameState.month + 1) % 12 === 0) {
+      const totalWeight = MARKET_REGIMES.reduce((sum, regime) => sum + regime.weight, 0);
+      let random = Math.random() * totalWeight;
+      for (const regime of MARKET_REGIMES) {
+        random -= regime.weight;
+        if (random <= 0) {
+          newRegime = regime;
+          break;
+        }
+      }
+    }
+    const newCumulativePerformance = ((1 + gameState.cumulativePerformance / 100) * (1 + totalMonthReturn) - 1) * 100;
+    const historyEntry = {
+      month: gameState.month + 1,
+      aum: finalAUM,
+      performance: totalMonthReturn * 100,
+      gpCash: newGPCash + eventImpactCash,
+      lpSat: Math.max(0, Math.min(1, newLPSat - eventImpactLP)),
+      compliance: finalCompliance
+    };
+    if (event && eventImpactCompliance > 0 && finalCompliance < 0.1) {
+      setGameState({
+        ...gameState,
+        month: (gameState.month + 1) % 12,
+        year: isEnteringNewYear ? gameState.year + 1 : gameState.year,
+        gpCash: newGPCash + eventImpactCash,
+        aum: finalAUM,
+        performance: totalMonthReturn * 100,
+        cumulativePerformance: newCumulativePerformance,
+        lpSatisfaction: newLPSat,
+        complianceScore: finalCompliance,
+        marketRegime: newRegime,
+        history: [...gameState.history.slice(-24), historyEntry],
+        gameOver: true,
+        victory: false,
+        lastEvent: event,
+        managementFees: gameState.managementFees + managementFee,
+        performanceFees: gameState.performanceFees + performanceFee,
+        hwm: Math.max(gameState.hwm, finalAUM),
+        fundraisingBoostMonths: newFundraisingBoostMonths,
+        lastEvents: event ? [event.name, ...gameState.lastEvents].slice(0, 2) : gameState.lastEvents,
+        lastEventCost: newEventCost,
+        yearStartAUM: isEnteringNewYear ? finalAUM : gameState.yearStartAUM,
+        accumulatedCapital: isEnteringNewYear ? 0 : updatedAccumulatedCapital,
+        accumulatedEventCapital: isEnteringNewYear ? 0 : updatedAccumulatedEventCapital,
+        annualPerformance: isEnteringNewYear ? 0 : newAnnualPerformance,
+        lastYearPerformance: newLastYearPerformance,
+        yearEndHistory: isEnteringNewYear && yearEndRecord ? [...gameState.yearEndHistory, yearEndRecord] : gameState.yearEndHistory
+      });
+      setShowEventModal(true);
+      return;
+    }
+    let gameOver = false;
+    let victory = false;
+    let collapseReason = null;
+    let collapseDetails = null;
+    if (isEnteringNewYear && yearEndRecord) {
+      const completedYears = gameState.yearEndHistory.length + 1;
+      if (completedYears >= 15) {
+        const allYearRecords = [...gameState.yearEndHistory, yearEndRecord];
+        const avgReturn = allYearRecords.reduce((sum, r) => sum + r.annualReturn, 0) / allYearRecords.length;
+        if (avgReturn >= 0.20) {
+          victory = true;
+          gameOver = true;
+        }
+      }
+    }
+    if (newGPCash + eventImpactCash < 0) {
+      gameOver = true;
+    } else if (finalCompliance < 0.1) {
+      gameOver = true;
+    } else if (finalAUM < 1000000) {
+      gameOver = true;
+      if (isEnteringNewYear && yearEndRecord) {
+        const totalFees = yearEndRecord.managementFee + yearEndRecord.performanceFee;
+        const aumAfterCapitalBeforeRedemptions = yearEndRecord.aumBeforeRedemptions;
+        const redemptionPercent = yearEndRecord.redemptions > 0 ? yearEndRecord.redemptions / aumAfterCapitalBeforeRedemptions * 100 : 0;
+        if (yearEndRecord.redemptions > aumAfterCapitalBeforeRedemptions * 0.3) {
+          collapseReason = `Mass Redemptions (${redemptionPercent.toFixed(0)}% of capital fled)`;
+        } else if (totalFees > yearEndRecord.aumBeforeCapital * 0.15) {
+          collapseReason = `Excessive Fees (${(totalFees / yearEndRecord.aumBeforeCapital * 100).toFixed(0)}% drained fund)`;
+        } else if (yearEndRecord.annualReturn < -0.2) {
+          collapseReason = `Catastrophic Performance (${(yearEndRecord.annualReturn * 100).toFixed(1)}% annual loss)`;
+        } else {
+          collapseReason = 'AUM Below Minimum Threshold';
+        }
+        collapseDetails = {
+          startingAUM: yearEndRecord.yearStartAUM,
+          performanceImpact: yearEndRecord.aumBeforeCapital - yearEndRecord.yearStartAUM - updatedAccumulatedEventImpact,
+          eventImpact: updatedAccumulatedEventImpact,
+          managementFee: yearEndRecord.managementFee,
+          performanceFee: yearEndRecord.performanceFee,
+          redemptions: yearEndRecord.redemptions,
+          newCapital: yearEndRecord.capitalDeployed,
+          finalAUM: finalAUM
+        };
+      } else {
+        collapseReason = 'AUM Below Minimum Threshold';
+        collapseDetails = {
+          startingAUM: gameState.yearStartAUM,
+          performanceImpact: newAUM - gameState.yearStartAUM - updatedAccumulatedEventImpact,
+          eventImpact: updatedAccumulatedEventImpact,
+          managementFee: 0,
+          performanceFee: 0,
+          redemptions: 0,
+          newCapital: updatedAccumulatedCapital,
+          finalAUM: finalAUM
+        };
+      }
+    } else if (newLPSat < 0.1) {
+      gameOver = true;
+    }
+    setGameState({
+      ...gameState,
+      month: (gameState.month + 1) % 12,
+      year: gameState.month === 11 ? gameState.year + 1 : gameState.year,
+      gpCash: newGPCash + eventImpactCash,
+      aum: finalAUM,
+      performance: totalMonthReturn * 100,
+      cumulativePerformance: newCumulativePerformance,
+      lpSatisfaction: newLPSat,
+      complianceScore: finalCompliance,
+      marketRegime: newRegime,
+      history: [...gameState.history.slice(-24), historyEntry],
+      gameOver,
+      victory,
+      lastEvent: displayEvent,
+      managementFees: gameState.managementFees + managementFee,
+      performanceFees: gameState.performanceFees + performanceFee,
+      hwm: Math.max(gameState.hwm, finalAUM),
+      fundraisingBoostMonths: newFundraisingBoostMonths,
+      lastEvents: event ? [event.name, ...gameState.lastEvents].slice(0, 2) : gameState.lastEvents,
+      lastEventCost: newEventCost,
+      yearStartAUM: isEnteringNewYear ? finalAUM : gameState.yearStartAUM,
+      accumulatedCapital: isEnteringNewYear ? 0 : updatedAccumulatedCapital,
+      accumulatedEventCapital: isEnteringNewYear ? 0 : updatedAccumulatedEventCapital,
+      accumulatedEventImpact: isEnteringNewYear ? 0 : updatedAccumulatedEventImpact,
+      annualPerformance: isEnteringNewYear ? 0 : newAnnualPerformance,
+      lastYearPerformance: newLastYearPerformance,
+      yearEndHistory: isEnteringNewYear && yearEndRecord ? [...gameState.yearEndHistory, yearEndRecord] : gameState.yearEndHistory,
+      collapseReason,
+      collapseDetails
+    });
+    if (displayEvent) {
+      setShowEventModal(true);
+    }
+    if (isEnteringNewYear && !displayEvent) {
+      setShowYearEndSummary(true);
+    }
+  };
+  const hireStaff = hireKey => {
+    if (gameState.team.includes(hireKey)) return;
+    const hire = HIRES[hireKey];
+    if (gameState.gpCash < hire.cost) return;
+    setGameState({
+      ...gameState,
+      gpCash: gameState.gpCash - hire.cost,
+      team: [...gameState.team, hireKey]
+    });
+    setShowHireMenu(false);
+  };
+  const launchFund = fundKey => {
+    if (gameState.activeFunds.includes(fundKey)) return;
+    const fund = STRATEGIES[fundKey];
+    if (gameState.gpCash < fund.cost * 12) return;
+    setGameState({
+      ...gameState,
+      gpCash: gameState.gpCash - fund.cost,
+      activeFunds: [...gameState.activeFunds, fundKey]
+    });
+    setShowFundMenu(false);
+  };
+  const resetGame = () => {
+    setAutoPaused(true);
+    setShowEventModal(false);
+    setShowYearEndSummary(false);
+    setYearEndData(null);
+    setShowTrackRecord(false);
+    setShowHireMenu(false);
+    setShowFundMenu(false);
+    setShowMobileMenu(false);
+    setGameState({
+      month: 0,
+      year: 1,
+      gpCash: 5000000,
+      aum: 50000000,
+      performance: 0,
+      cumulativePerformance: 0,
+      lpSatisfaction: 0.8,
+      complianceScore: 1.0,
+      activeFunds: ['longShort'],
+      team: [],
+      history: [],
+      marketRegime: MARKET_REGIMES[0],
+      gameOver: false,
+      victory: false,
+      lastEvent: null,
+      managementFees: 0,
+      performanceFees: 0,
+      hwm: 50000000,
+      fundraisingBoostMonths: 0,
+      lastEvents: [],
+      lastEventCost: 0,
+      yearStartAUM: 50000000,
+      accumulatedCapital: 0,
+      accumulatedEventCapital: 0,
+      accumulatedEventImpact: 0,
+      annualPerformance: 0,
+      lastYearPerformance: 0,
+      yearEndHistory: [],
+      collapseReason: null,
+      collapseDetails: null
+    });
+  };
+  useEffect(() => {
+    if (!autoPaused && !gameState.gameOver) {
+      const interval = setInterval(() => {
+        processTurn();
+      }, 1000);
+      return () => clearInterval(interval);
+    }
+  }, [autoPaused, gameState.gameOver, processTurn]);
+  useEffect(() => {
+    if (gameState.gameOver) {
+      setShowYearEndSummary(false);
+    }
+  }, [gameState.gameOver]);
+  if (gameState.gameOver) {
+    return <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-slate-100 flex items-center justify-center p-4">
+        <div className="max-w-2xl w-full bg-slate-900/50 backdrop-blur-xl rounded-2xl border border-slate-700/50 p-12 text-center">
+        {gameState.victory ? <>
+          <Trophy className="w-24 h-24 text-yellow-400 mx-auto mb-6" />
+            <h1 className="text-5xl font-bold mb-4 bg-gradient-to-r from-yellow-400 to-amber-600 bg-clip-text text-transparent">
+              FUND TITAN
+            </h1>
+            <p className="text-2xl text-slate-300 mb-4">You built a legendary track record</p>
+            <p className="text-lg text-slate-400 mb-2">
+              {gameState.yearEndHistory.length} Years • {(gameState.yearEndHistory.reduce((sum, r) => sum + r.annualReturn, 0) / gameState.yearEndHistory.length * 100).toFixed(1)}% Average Annual Returns
+            </p>
+            
+            <div className="bg-gradient-to-r from-yellow-900/30 to-amber-900/30 border border-yellow-500/30 rounded-xl p-4 mb-6">
+              <div className="text-sm text-yellow-200 mb-3 font-semibold">Victory Conditions Met:</div>
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div className="flex items-center gap-2">
+                  <div className="w-5 h-5 rounded bg-emerald-500 flex items-center justify-center">
+                    <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                  <span className="text-emerald-300">15+ Years Track Record ✓</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-5 h-5 rounded bg-emerald-500 flex items-center justify-center">
+                    <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                  <span className="text-emerald-300">20%+ Avg Returns ✓</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-slate-800/50 rounded-xl p-5 mb-6">
+              <h3 className="text-lg font-semibold text-cyan-400 mb-3">You Join the Legends</h3>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400">Jim Simons (Medallion Fund)</span>
+                  <span className="text-slate-300">~66% over 30 years (1988-2018)</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400">Stanley Druckenmiller (Duquesne)</span>
+                  <span className="text-slate-300">~30% over 30 years (1981-2010)</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400">Peter Lynch (Magellan Fund)</span>
+                  <span className="text-slate-300">~29% over 13 years (1977-1990)</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400">George Soros (Quantum Fund)</span>
+                  <span className="text-slate-300">~30% over 30 years (1970s-2000s)</span>
+                </div>
+                <div className="h-px bg-slate-700 my-2"></div>
+                <div className="flex justify-between items-center font-semibold">
+                  <span className="text-yellow-400">Your Fund</span>
+                  <span className="text-yellow-400">
+                    {(gameState.yearEndHistory.reduce((sum, r) => sum + r.annualReturn, 0) / gameState.yearEndHistory.length * 100).toFixed(1)}% over {gameState.yearEndHistory.length} years
+                  </span>
+                </div>
+              </div>
+            </div>
+
+              <div className="grid grid-cols-2 gap-4 mb-8">
+                <div className="bg-slate-800/50 rounded-lg p-4">
+                  <div className="text-slate-400 text-sm mb-1">Final AUM</div>
+                  <div className="text-3xl font-bold text-emerald-400">{formatCurrency(gameState.aum)}</div>
+                </div>
+                <div className="bg-slate-800/50 rounded-lg p-4">
+                  <div className="text-slate-400 text-sm mb-1">GP Wealth</div>
+                  <div className="text-3xl font-bold text-emerald-400">{formatCurrency(gameState.gpCash)}</div>
+                </div>
+                <div className="bg-slate-800/50 rounded-lg p-4">
+                  <div className="text-slate-400 text-sm mb-1">Total Returns</div>
+                  <div className="text-3xl font-bold text-emerald-400">{gameState.cumulativePerformance.toFixed(1)}%</div>
+                </div>
+                <div className="bg-slate-800/50 rounded-lg p-4">
+                  <div className="text-slate-400 text-sm mb-1">Years Survived</div>
+                  <div className="text-3xl font-bold text-emerald-400">{gameState.year}</div>
+                </div>
+              </div>
+            </> : <>
+              <Skull className="w-24 h-24 text-red-500 mx-auto mb-6" />
+          <h1 className="text-5xl font-bold mb-4 bg-gradient-to-r from-red-500 to-orange-600 bg-clip-text text-transparent">
+            {gameState.gpCash < 0 ? 'FUND INSOLVENT' : gameState.complianceScore < 0.1 ? 'REGULATORY SHUTDOWN' : gameState.aum < 1000000 ? 'FUND LIQUIDATED' : 'INVESTOR EXODUS'}
+          </h1>
+          <p className="text-xl text-slate-300 mb-4">
+            {gameState.gpCash < 0 ? 'GP ran out of operating capital' : gameState.complianceScore < 0.1 ? 'Compliance score fell below minimum threshold' : gameState.aum < 1000000 ? gameState.collapseReason || 'AUM Below Minimum Threshold' : 'LP satisfaction collapsed below survival threshold'}
+          </p>
+          
+          {gameState.gpCash < 0 && <div className="bg-slate-800/50 rounded-lg p-4 mb-8 text-left">
+              <p className="text-sm text-slate-400 mb-2">
+                <strong className="text-slate-300">What happened:</strong> Your fund's GP cash reserves were completely depleted by operational expenses, unable to cover monthly costs.
+              </p>
+              <p className="text-sm text-slate-400 mb-3">
+                <strong className="text-slate-300">Common causes:</strong> High personnel costs, excessive fund operating expenses, insufficient management fees, or costly random events that drained reserves faster than fee income could replenish them.
+              </p>
+              <div className="bg-slate-900/50 rounded p-3">
+                <div className="text-xs text-slate-400 text-center">Monthly Costs > GP Cash Available</div>
+              </div>
+            </div>}
+          
+          {gameState.complianceScore < 0.1 && <div className="bg-slate-800/50 rounded-lg p-4 mb-8 text-left">
+              <p className="text-sm text-slate-400 mb-2">
+                <strong className="text-slate-300">What happened:</strong> Your fund's compliance score fell below 10% - the minimum threshold required by regulators to continue operations.
+              </p>
+              <p className="text-sm text-slate-400 mb-3">
+                <strong className="text-slate-300">Why it matters:</strong> Without a Compliance Officer, your score naturally decays by 0.5% per month. Random compliance events (SEC inspections, whistleblower complaints) can cause sudden drops of 15-35%. Hiring a Compliance Officer prevents these events when your score is already at 30% or below, giving you time to recover. Once below 10%, regulators force immediate liquidation.
+              </p>
+              <div className="bg-slate-900/50 rounded p-3">
+                <div className="text-xs text-slate-400 text-center">Compliance Score: {(gameState.complianceScore * 100).toFixed(1)}% {'<'} 10% Minimum</div>
+              </div>
+            </div>}
+          
+          {gameState.lpSatisfaction < 0.1 && gameState.aum >= 1000000 && gameState.complianceScore >= 0.1 && gameState.gpCash >= 0 && <div className="bg-slate-800/50 rounded-lg p-4 mb-8 text-left">
+              <p className="text-sm text-slate-400 mb-2">
+                <strong className="text-slate-300">What happened:</strong> Your LP satisfaction dropped below 10% - LPs lost all confidence in the fund's ability to deliver returns.
+              </p>
+              <p className="text-sm text-slate-400 mb-3">
+                <strong className="text-slate-300">Common causes:</strong> Consistent underperformance, excessive losses, poor risk management, or multiple negative events that eroded investor trust. When LPs lose faith, they demand immediate redemptions and refuse to commit new capital.
+              </p>
+              <div className="bg-slate-900/50 rounded p-3">
+                <div className="text-xs text-slate-400 text-center">LP Satisfaction: {(gameState.lpSatisfaction * 100).toFixed(0)}% {'<'} 10% Minimum</div>
+              </div>
+            </div>}
+          {gameState.aum < 1000000 && gameState.collapseDetails && <div className="bg-slate-800/50 rounded-lg p-4 mb-8 text-left">
+              <p className="text-sm text-slate-400 mb-2">
+                <strong className="text-slate-300">What happened:</strong> Your fund's assets under management fell below $1 million - the minimum threshold needed to sustain operations.
+              </p>
+              <p className="text-sm text-slate-400 mb-3">
+                <strong className="text-slate-300">Why it matters:</strong> Below $1M AUM, management fees cannot cover basic operating costs. The fund becomes economically unviable and must liquidate.
+              </p>
+              <div className="bg-slate-900/50 rounded p-3 mb-2">
+                <div className="text-xs text-slate-300 font-semibold mb-2">Collapse Breakdown:</div>
+                <div className="space-y-1 text-xs">
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Starting AUM:</span>
+                    <span className="text-slate-200">{formatCurrency(gameState.collapseDetails.startingAUM)}</span>
+                  </div>
+                  {gameState.collapseDetails.performanceImpact !== 0 && <div className="flex justify-between">
+                    <span className="text-slate-400">Performance Impact:</span>
+                    <span className={gameState.collapseDetails.performanceImpact >= 0 ? 'text-emerald-400' : 'text-red-400'}>
+                      {gameState.collapseDetails.performanceImpact >= 0 ? '+' : ''}{formatCurrency(gameState.collapseDetails.performanceImpact)}
+                    </span>
+                  </div>}
+                  {gameState.collapseDetails.eventImpact !== 0 && <div className="flex justify-between">
+                    <span className="text-slate-400">Event Impact:</span>
+                    <span className={gameState.collapseDetails.eventImpact >= 0 ? 'text-emerald-400' : 'text-red-400'}>
+                      {gameState.collapseDetails.eventImpact >= 0 ? '+' : ''}{formatCurrency(gameState.collapseDetails.eventImpact)}
+                    </span>
+                  </div>}
+                  {gameState.collapseDetails.managementFee > 0 && <div className="flex justify-between">
+                    <span className="text-slate-400">Management Fee:</span>
+                    <span className="text-red-400">-{formatCurrency(gameState.collapseDetails.managementFee)}</span>
+                  </div>}
+                  {gameState.collapseDetails.performanceFee > 0 && <div className="flex justify-between">
+                    <span className="text-slate-400">Performance Fee:</span>
+                    <span className="text-red-400">-{formatCurrency(gameState.collapseDetails.performanceFee)}</span>
+                  </div>}
+                  {gameState.collapseDetails.redemptions > 0 && <div className="flex justify-between">
+                    <span className="text-slate-400">Redemptions:</span>
+                    <span className="text-red-400">-{formatCurrency(gameState.collapseDetails.redemptions)}</span>
+                  </div>}
+                  {gameState.collapseDetails.newCapital > 0 && <div className="flex justify-between">
+                    <span className="text-slate-400">New Capital:</span>
+                    <span className="text-emerald-400">+{formatCurrency(gameState.collapseDetails.newCapital)}</span>
+                  </div>}
+                  <div className="h-px bg-slate-700 my-1"></div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-300 font-semibold">Final AUM:</span>
+                    <span className="text-red-400 font-semibold">{formatCurrency(gameState.collapseDetails.finalAUM)}</span>
+                  </div>
+                </div>
+              </div>
+              <p className="text-xs text-slate-500">
+                The fund could not sustain operations below $1M AUM threshold.
+              </p>
+            </div>}
+              <div className="grid grid-cols-2 gap-4 mb-8">
+                <div className="bg-slate-800/50 rounded-lg p-4">
+                  <div className="text-slate-400 text-sm mb-1">Final AUM</div>
+                  <div className="text-2xl font-bold text-red-400">{formatCurrency(gameState.aum)}</div>
+                </div>
+                <div className="bg-slate-800/50 rounded-lg p-4">
+                  <div className="text-slate-400 text-sm mb-1">GP Cash</div>
+                  <div className={`text-2xl font-bold ${gameState.gpCash < 0 ? 'text-red-400' : 'text-slate-300'}`}>{formatCurrency(gameState.gpCash)}</div>
+                </div>
+                <div className="bg-slate-800/50 rounded-lg p-4">
+                  <div className="text-slate-400 text-sm mb-1">Survived</div>
+                  <div className="text-2xl font-bold text-slate-300">{gameState.year}Y {gameState.month}M</div>
+                </div>
+                <div className="bg-slate-800/50 rounded-lg p-4">
+                  <div className="text-slate-400 text-sm mb-1">Compliance</div>
+                  <div className={`text-2xl font-bold ${gameState.complianceScore < 0.1 ? 'text-red-400' : 'text-slate-300'}`}>{(gameState.complianceScore * 100).toFixed(0)}%</div>
+                </div>
+                <div className="bg-slate-800/50 rounded-lg p-4">
+                  <div className="text-slate-400 text-sm mb-1">LP Satisfaction</div>
+                  <div className={`text-2xl font-bold ${gameState.lpSatisfaction < 0.1 ? 'text-red-400' : 'text-slate-300'}`}>{(gameState.lpSatisfaction * 100).toFixed(0)}%</div>
+                </div>
+                <div className="bg-slate-800/50 rounded-lg p-4">
+                  <div className="text-slate-400 text-sm mb-1">YTD Returns</div>
+                  <div className={`text-2xl font-bold ${gameState.annualPerformance >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {gameState.annualPerformance >= 0 ? '+' : ''}{(gameState.annualPerformance * 100).toFixed(1)}%
+                  </div>
+                </div>
+              </div>
+            </>}
+          <button onClick={resetGame} className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white px-8 py-4 rounded-xl font-bold text-lg transition-all duration-200 shadow-xl hover:shadow-2xl">
+            Launch New Fund
+          </button>
+        </div>
+      </div>;
+  }
+  return <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-slate-100">
+      {}
+      {showTrackRecord && <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-900 rounded-2xl border border-slate-700 p-8 max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <Trophy className="w-8 h-8 text-yellow-400" />
+                <h2 className="text-3xl font-bold">Track Record</h2>
+              </div>
+              <button onClick={() => setShowTrackRecord(false)} className="text-slate-400 hover:text-slate-200">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            {gameState.yearEndHistory.length === 0 ? <div className="text-center py-12 text-slate-400">
+                <Trophy className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                <p>No completed years yet</p>
+                <p className="text-sm mt-2">Complete your first year to see your track record</p>
+              </div> : <div className="space-y-4">
+                {gameState.yearEndHistory.map((record, index) => <div key={index} className="bg-slate-800/50 rounded-xl p-5 border border-slate-700">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-xl font-bold text-blue-400">Year {record.year}</h3>
+                      <div className={`text-2xl font-bold ${record.annualReturn >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {(record.annualReturn * 100).toFixed(2)}%
+                      </div>
+                    </div>
+                    <div className="grid md:grid-cols-3 gap-4">
+                      <div>
+                        <div className="text-slate-400 text-sm mb-1">Year Start AUM</div>
+                        <div className="font-semibold text-slate-200">{formatCurrency(record.yearStartAUM)}</div>
+                      </div>
+                      <div>
+                        <div className="text-slate-400 text-sm mb-1">Year End AUM</div>
+                        <div className="font-semibold text-emerald-400">{formatCurrency(record.aumAfterFees)}</div>
+                      </div>
+                      <div>
+                        <div className="text-slate-400 text-sm mb-1">AUM Growth</div>
+                        <div className={`font-semibold ${record.aumAfterFees - record.yearStartAUM >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                          {record.aumAfterFees - record.yearStartAUM >= 0 ? '+' : ''}{formatCurrency(record.aumAfterFees - record.yearStartAUM)}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-slate-400 text-sm mb-1">Management Fee</div>
+                        <div className="font-semibold text-blue-400">{formatCurrency(record.managementFee)}</div>
+                      </div>
+                      <div>
+                        <div className="text-slate-400 text-sm mb-1">Performance Fee</div>
+                        <div className="font-semibold text-purple-400">{formatCurrency(record.performanceFee)}</div>
+                      </div>
+                      <div>
+                        <div className="text-slate-400 text-sm mb-1">Redemptions</div>
+                        <div className="font-semibold text-red-400">{formatCurrency(record.redemptions)}</div>
+                      </div>
+                      <div>
+                        <div className="text-slate-400 text-sm mb-1">New Capital</div>
+                        <div className="font-semibold text-cyan-400">{formatCurrency(record.capitalDeployed)}</div>
+                      </div>
+                      <div>
+                        <div className="text-slate-400 text-sm mb-1">GP Cash Change</div>
+                        <div className={`font-semibold ${record.gpCashAfter - record.gpCashBefore >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                          {record.gpCashAfter - record.gpCashBefore >= 0 ? '+' : ''}{formatCurrency(record.gpCashAfter - record.gpCashBefore)}
+                        </div>
+                      </div>
+                    </div>
+                  </div>)}
+              </div>}
+          </div>
+        </div>}
+      {showYearEndSummary && yearEndData && !gameState.gameOver && yearEndData.year === gameState.year - 1 && <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-900 rounded-2xl border border-slate-700 p-8 max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center gap-3 mb-6">
+              <Trophy className="w-8 h-8 text-yellow-400" />
+              <h2 className="text-3xl font-bold">Year {yearEndData.year} Summary</h2>
+            </div>
+            <div className="grid md:grid-cols-2 gap-6 mb-6">
+              <div className="bg-slate-800/50 rounded-xl p-5">
+                <h3 className="text-lg font-semibold mb-4 text-blue-400">AUM Changes</h3>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-400">Year Start AUM</span>
+                    <span className="font-semibold text-slate-200">{formatCurrency(yearEndData.yearStartAUM)}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-400">Annual Performance</span>
+                    <span className={`font-semibold ${yearEndData.annualReturn >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                      {(yearEndData.annualReturn * 100).toFixed(2)}%
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-400">AUM Before Fees</span>
+                    <span className="font-semibold text-slate-200">{formatCurrency(yearEndData.aumBeforeCapital)}</span>
+                  </div>
+                  <div className="h-px bg-slate-700"></div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-400">Management Fee (2%)</span>
+                    <span className="font-semibold text-red-400">-{formatCurrency(yearEndData.managementFee)}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-400">Performance Fee (20%)</span>
+                    <span className="font-semibold text-red-400">-{formatCurrency(yearEndData.performanceFee)}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-400">Redemptions</span>
+                    <span className="font-semibold text-red-400">-{formatCurrency(yearEndData.redemptions)}</span>
+                  </div>
+                  <div className="h-px bg-slate-700"></div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-400">New Capital Deployed</span>
+                    <span className="font-semibold text-emerald-400">+{formatCurrency(yearEndData.capitalDeployed)}</span>
+                  </div>
+                  <div className="h-px bg-slate-700"></div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-300 font-semibold">Year End AUM</span>
+                    <span className="font-bold text-emerald-400">{formatCurrency(yearEndData.aumAfterFees)}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-slate-400">Total Change</span>
+                    <span className={`font-semibold ${yearEndData.aumAfterFees - yearEndData.yearStartAUM >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                      {yearEndData.aumAfterFees - yearEndData.yearStartAUM >= 0 ? '+' : ''}{formatCurrency(yearEndData.aumAfterFees - yearEndData.yearStartAUM)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-slate-800/50 rounded-xl p-5">
+                <h3 className="text-lg font-semibold mb-4 text-purple-400">GP Capital Changes</h3>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-400">GP Cash Before Fees</span>
+                    <span className="font-semibold text-slate-200">{formatCurrency(yearEndData.gpCashBefore)}</span>
+                  </div>
+                  <div className="h-px bg-slate-700"></div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-400">Management Fee</span>
+                    <span className="font-semibold text-emerald-400">+{formatCurrency(yearEndData.managementFee)}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-400">Performance Fee</span>
+                    <span className="font-semibold text-emerald-400">+{formatCurrency(yearEndData.performanceFee)}</span>
+                  </div>
+                  <div className="h-px bg-slate-700"></div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-300 font-semibold">GP Cash After Fees</span>
+                    <span className="font-bold text-emerald-400">{formatCurrency(yearEndData.gpCashAfter)}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-slate-400">Total Change</span>
+                    <span className={`font-semibold ${yearEndData.gpCashAfter - yearEndData.gpCashBefore >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                      {yearEndData.gpCashAfter - yearEndData.gpCashBefore >= 0 ? '+' : ''}{formatCurrency(yearEndData.gpCashAfter - yearEndData.gpCashBefore)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="bg-slate-800/50 rounded-xl p-5 mb-6">
+              <h3 className="text-lg font-semibold mb-4 text-cyan-400">Capital Sources (During Year)</h3>
+              <div className="grid md:grid-cols-2 gap-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400">From Events</span>
+                  <span className="font-semibold text-emerald-400">{formatCurrency(yearEndData.eventCapital)}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400">Organic Fundraising</span>
+                  <span className="font-semibold text-blue-400">{formatCurrency(yearEndData.organicCapital)}</span>
+                </div>
+              </div>
+            </div>
+            <button onClick={() => {
+          setShowYearEndSummary(false);
+          setYearEndData(null);
+        }} className="w-full bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white px-6 py-3 rounded-xl font-semibold transition-all">
+              Continue to Year {yearEndData.year + 1}
+            </button>
+          </div>
+        </div>}
+      {showEventModal && gameState.lastEvent && <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-900 rounded-2xl border border-slate-700 p-8 max-w-lg w-full">
+            <div className="flex items-center gap-3 mb-4">
+              <AlertTriangle className={`w-8 h-8 ${gameState.lastEvent.type === 'positive' ? 'text-emerald-400' : gameState.lastEvent.complianceHit ? 'text-yellow-400' : 'text-red-400'}`} />
+              <h2 className="text-2xl font-bold">{gameState.lastEvent.name}</h2>
+            </div>
+            <div className="space-y-2 mb-6">
+              {gameState.lastEvent.impact && <p className="text-slate-300">GP Cash Impact: {formatCurrency(gameState.lastEvent.impact)}</p>}
+              {gameState.lastEvent.aumImpact && <p className="text-red-400">AUM Impact: {formatCurrency(gameState.lastEvent.aumImpact)}</p>}
+              {gameState.lastEvent.aumBoost && <p className="text-emerald-400">AUM Boost: +{formatCurrency(gameState.lastEvent.aumBoost)}</p>}
+              {gameState.lastEvent.performanceHit && <p className="text-red-400">Performance Hit: -{(gameState.lastEvent.performanceHit * 100).toFixed(1)}%</p>}
+              {gameState.lastEvent.complianceHit && gameState.lastEvent.complianceHit > 0 && <p className="text-yellow-400 font-semibold bg-yellow-900/20 px-3 py-2 rounded-lg border border-yellow-700/30">
+                <span className="flex items-center gap-2">
+                  <Shield className="w-4 h-4" />
+                  Compliance Score Impact: -{(gameState.lastEvent.complianceHit * 100).toFixed(0)}%
+                </span>
+              </p>}
+              {gameState.lastEvent.lpConfidenceBoost && <p className="text-emerald-400">LP Satisfaction Boost: +{(gameState.lastEvent.lpConfidenceBoost * 100).toFixed(0)}%</p>}
+              {gameState.lastEvent.grantsFundraisingBoost && <p className="text-emerald-400">Fundraising Boost Active: 5x increased chance for capital injection events for 6 months</p>}
+            </div>
+            <button onClick={() => {
+          setShowEventModal(false);
+          if (yearEndData && yearEndData.year === gameState.year - 1) {
+            setShowYearEndSummary(true);
+          }
+        }} className="w-full bg-slate-800 hover:bg-slate-700 text-white px-6 py-3 rounded-xl font-semibold transition-all">
+              Continue
+            </button>
+          </div>
+        </div>}
+      {}
+      {showHireMenu && <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-900 rounded-2xl border border-slate-700 p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+            <h2 className="text-2xl font-bold mb-6">Hire Talent</h2>
+            <div className="space-y-3">
+              {Object.entries(HIRES).map(([key, hire]) => <div key={key} className="bg-slate-800/50 rounded-xl p-4 flex items-center justify-between">
+                  <div>
+                    <div className="font-semibold text-lg">{hire.name}</div>
+                    <div className="text-sm text-slate-400">Annual Cost: {formatCurrency(hire.cost)}</div>
+                    <div className="text-xs text-emerald-400 mt-1">
+                      {hire.description}
+                    </div>
+                  </div>
+                  <button onClick={() => hireStaff(key)} disabled={gameState.team.includes(key) || gameState.gpCash < hire.cost} className={`px-4 py-2 rounded-lg font-semibold transition-all ${gameState.team.includes(key) ? 'bg-slate-700 text-slate-500 cursor-not-allowed' : gameState.gpCash < hire.cost ? 'bg-slate-700 text-slate-500 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}>
+                    {gameState.team.includes(key) ? 'Hired' : 'Hire'}
+                  </button>
+                </div>)}
+            </div>
+            <button onClick={() => setShowHireMenu(false)} className="w-full mt-6 bg-slate-800 hover:bg-slate-700 text-white px-6 py-3 rounded-xl font-semibold transition-all">
+              Close
+            </button>
+          </div>
+        </div>}
+      {}
+      {showFundMenu && <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-900 rounded-2xl border border-slate-700 p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+            <h2 className="text-2xl font-bold mb-6">Launch New Fund</h2>
+            <div className="space-y-3">
+              {Object.entries(STRATEGIES).map(([key, strategy]) => <div key={key} className="bg-slate-800/50 rounded-xl p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <div>
+                      <div className="font-semibold text-lg">{strategy.name}</div>
+                      <div className="text-sm text-slate-400">Launch Cost: {formatCurrency(strategy.cost)}</div>
+                    </div>
+                    <button onClick={() => launchFund(key)} disabled={gameState.activeFunds.includes(key) || gameState.gpCash < strategy.cost * 12} className={`px-4 py-2 rounded-lg font-semibold transition-all ${gameState.activeFunds.includes(key) ? 'bg-slate-700 text-slate-500 cursor-not-allowed' : gameState.gpCash < strategy.cost * 12 ? 'bg-slate-700 text-slate-500 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}>
+                      {gameState.activeFunds.includes(key) ? 'Active' : 'Launch'}
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-4 gap-2 text-xs">
+                    <div>
+                      <div className="text-slate-500">Return p.a.</div>
+                      <div className="text-emerald-400 font-semibold">{strategy.returnPA}%</div>
+                    </div>
+                    <div>
+                      <div className="text-slate-500">Volatility</div>
+                      <div className="text-yellow-400 font-semibold">{strategy.volatility}%</div>
+                    </div>
+                    <div>
+                      <div className="text-slate-500">Capacity</div>
+                      <div className="text-blue-400 font-semibold">{formatCurrency(strategy.capacity * 1000000)}</div>
+                    </div>
+                    <div>
+                      <div className="text-slate-500">Beta</div>
+                      <div className="text-purple-400 font-semibold">{strategy.correlation}</div>
+                    </div>
+                  </div>
+                </div>)}
+            </div>
+            <button onClick={() => setShowFundMenu(false)} className="w-full mt-6 bg-slate-800 hover:bg-slate-700 text-white px-6 py-3 rounded-xl font-semibold transition-all">
+              Close
+            </button>
+          </div>
+        </div>}
+      {}
+      <div className="border-b border-slate-800 bg-slate-900/50 backdrop-blur-xl sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto px-4 py-4">
+          {}
+          <button onClick={() => setShowHeaderStats(!showHeaderStats)} className="md:hidden mb-3 bg-slate-800 hover:bg-slate-700 text-slate-300 px-4 py-2 rounded-lg font-semibold transition-all flex items-center gap-2">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              {showHeaderStats ? <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" /> : <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />}
+            </svg>
+            {showHeaderStats ? 'Hide Stats' : 'Show Stats'}
+          </button>
+          <div className={`flex items-center justify-between ${showHeaderStats ? 'mb-4' : 'mb-0'}`}>
+            <div>
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
+                HEDGECRAFT
+              </h1>
+              <p className="text-slate-400 text-sm">Year {gameState.year} • Month {gameState.month + 1} • {gameState.marketRegime.name}</p>
+            </div>
+            {}
+            <div className="md:hidden relative">
+              <button onClick={() => setShowMobileMenu(!showMobileMenu)} className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white px-4 py-3 rounded-xl font-bold transition-all duration-200 shadow-xl hover:shadow-2xl flex items-center gap-2">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+                Menu
+              </button>
+              {showMobileMenu && <div className="absolute right-0 top-full mt-2 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl overflow-hidden z-50 min-w-[200px]">
+                  <button onClick={() => {
+                setAutoPaused(!autoPaused);
+                setShowMobileMenu(false);
+              }} className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-4 py-3 font-bold transition-all flex items-center gap-2 border-b border-slate-700">
+                    {autoPaused ? <><Play className="w-5 h-5" /> Autoplay</> : <><Pause className="w-5 h-5" /> Pause</>}
+                  </button>
+                  <button onClick={() => {
+                resetGame();
+                setShowMobileMenu(false);
+              }} className="w-full bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-700 hover:to-orange-700 text-white px-4 py-3 font-bold transition-all border-b border-slate-700">
+                    Restart
+                  </button>
+                  <button onClick={() => {
+                processTurn();
+                setShowMobileMenu(false);
+              }} className="w-full bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white px-4 py-3 font-bold transition-all flex items-center gap-2">
+                    Next Month <ChevronRight className="w-5 h-5" />
+                  </button>
+                </div>}
+            </div>
+            {}
+            <div className="hidden md:flex items-center gap-3">
+              <button onClick={() => setAutoPaused(!autoPaused)} className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-6 py-3 rounded-xl font-bold transition-all duration-200 shadow-xl hover:shadow-2xl flex items-center gap-2">
+                {autoPaused ? <><Play className="w-5 h-5" /> Autoplay</> : <><Pause className="w-5 h-5" /> Pause</>}
+              </button>
+              <button onClick={resetGame} className="bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-700 hover:to-orange-700 text-white px-6 py-3 rounded-xl font-bold transition-all duration-200 shadow-xl hover:shadow-2xl">
+                Restart
+              </button>
+              <button onClick={processTurn} className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white px-6 py-3 rounded-xl font-bold transition-all duration-200 shadow-xl hover:shadow-2xl flex items-center gap-2">
+                Next Month <ChevronRight className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+          {showHeaderStats && <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+            <div className="bg-slate-800/50 rounded-lg p-3">
+              <div className="flex items-center gap-2 text-slate-400 text-xs mb-1">
+                <DollarSign className="w-4 h-4" />
+                <span>AUM</span>
+              </div>
+              <div className="text-xl font-bold text-emerald-400">{formatCurrency(gameState.aum)}</div>
+            </div>
+            <div className="bg-slate-800/50 rounded-lg p-3">
+              <div className="flex items-center gap-2 text-slate-400 text-xs mb-1">
+                <Briefcase className="w-4 h-4" />
+                <span>GP Cash</span>
+              </div>
+              <div className={`text-xl font-bold ${gameState.gpCash > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                {formatCurrency(gameState.gpCash)}
+              </div>
+            </div>
+            <div className="bg-slate-800/50 rounded-lg p-3">
+              <div className="flex items-center gap-2 text-slate-400 text-xs mb-1">
+                <Activity className="w-4 h-4" />
+                <select value={selectedReturnMetric} onChange={e => setSelectedReturnMetric(e.target.value)} className="bg-transparent text-slate-400 text-xs cursor-pointer outline-none border-none">
+                  <option value="lastYear" className="bg-slate-800">Last Year</option>
+                  <option value="ytd" className="bg-slate-800">YTD</option>
+                  <option value="cumulative" className="bg-slate-800">Cumulative</option>
+                </select>
+              </div>
+              <div className={`text-xl font-bold ${(() => {
+              if (selectedReturnMetric === 'lastYear') {
+                return gameState.lastYearPerformance * 100 >= 0 ? 'text-emerald-400' : 'text-red-400';
+              } else if (selectedReturnMetric === 'ytd') {
+                return gameState.annualPerformance * 100 >= 0 ? 'text-emerald-400' : 'text-red-400';
+              } else {
+                return gameState.cumulativePerformance >= 0 ? 'text-emerald-400' : 'text-red-400';
+              }
+            })()}`}>
+                {(() => {
+                let value;
+                if (selectedReturnMetric === 'lastYear') {
+                  value = gameState.lastYearPerformance * 100;
+                } else if (selectedReturnMetric === 'ytd') {
+                  value = gameState.annualPerformance * 100;
+                } else {
+                  value = gameState.cumulativePerformance;
+                }
+                return `${value >= 0 ? '+' : ''}${value.toFixed(1)}%`;
+              })()}
+              </div>
+            </div>
+            <div className="bg-slate-800/50 rounded-lg p-3">
+              <div className="flex items-center gap-2 text-slate-400 text-xs mb-1">
+                <Users className="w-4 h-4" />
+                <span>LP Satisfaction</span>
+              </div>
+              <div className={`text-xl font-bold ${gameState.lpSatisfaction > 0.7 ? 'text-emerald-400' : gameState.lpSatisfaction > 0.4 ? 'text-yellow-400' : 'text-red-400'}`}>
+                {(gameState.lpSatisfaction * 100).toFixed(0)}%
+              </div>
+            </div>
+            <div className="bg-slate-800/50 rounded-lg p-3">
+              <div className="flex items-center gap-2 text-slate-400 text-xs mb-1">
+                <Shield className="w-4 h-4" />
+                <span>Compliance</span>
+                {!gameState.team.includes('compliance') && <div className="flex items-center gap-1 text-orange-400" title="Compliance naturally decays 0.5% per month without a Compliance Officer">
+                    <AlertTriangle className="w-3 h-3" />
+                  </div>}
+              </div>
+              <div className={`text-xl font-bold ${gameState.complianceScore > 0.7 ? 'text-emerald-400' : gameState.complianceScore > 0.4 ? 'text-yellow-400' : 'text-red-400'}`}>
+                {(gameState.complianceScore * 100).toFixed(0)}%
+              </div>
+              {!gameState.team.includes('compliance') && <div className="text-xs text-orange-400 mt-1">
+                  Decaying -0.5%/mo
+                </div>}
+              {gameState.complianceScore < 0.3 && <div className="text-xs text-red-400 mt-1 flex items-center gap-1">
+                  <AlertTriangle className="w-3 h-3" />
+                  Critical: {'>'}10% to avoid shutdown
+                </div>}
+            </div>
+            <div className="bg-slate-800/50 rounded-lg p-3">
+              <div className="flex items-center gap-2 text-slate-400 text-xs mb-1">
+                <Target className="w-4 h-4" />
+                <span>Fund Capacity</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <div>
+                  <div className="text-xs text-slate-500">Active Funds</div>
+                  <div className="text-lg font-bold text-blue-400">{gameState.activeFunds.length}</div>
+                </div>
+                <div className="h-8 w-px bg-slate-700"></div>
+                <div>
+                  <div className="text-xs text-slate-500">Capacity Used</div>
+                  <div className={`text-lg font-bold ${(() => {
+                  const totalCapacity = gameState.activeFunds.reduce((sum, fundKey) => sum + STRATEGIES[fundKey].capacity * 1000000, 0);
+                  const utilization = gameState.aum / totalCapacity;
+                  if (utilization > 1.0) return 'text-red-400';
+                  if (utilization > 0.8) return 'text-yellow-400';
+                  return 'text-emerald-400';
+                })()}`}>
+                    {(() => {
+                    const totalCapacity = gameState.activeFunds.reduce((sum, fundKey) => sum + STRATEGIES[fundKey].capacity * 1000000, 0);
+                    return (gameState.aum / totalCapacity * 100).toFixed(1);
+                  })()}%
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="bg-slate-800/50 rounded-lg p-3">
+              <div className="flex items-center gap-2 text-slate-400 text-xs mb-1">
+                <Activity className="w-4 h-4" />
+                <span>Fund Profile</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <div>
+                  <div className="text-xs text-slate-500">Return p.a.</div>
+                  <div className="text-lg font-bold text-emerald-400">
+                    {(() => {
+                    const cioBoost = gameState.team.includes('cio') ? 1.5 : 1.0;
+                    const weightedReturn = gameState.activeFunds.reduce((sum, fundKey) => {
+                      const aumShare = calculateAUMShare(fundKey);
+                      return sum + STRATEGIES[fundKey].returnPA * aumShare * cioBoost;
+                    }, 0);
+                    return weightedReturn.toFixed(1);
+                  })()}%
+                  </div>
+                </div>
+                <div className="h-8 w-px bg-slate-700"></div>
+                <div>
+                  <div className="text-xs text-slate-500">Volatility</div>
+                  <div className="text-lg font-bold text-yellow-400">
+                    {(() => {
+                    const weightedVol = gameState.activeFunds.reduce((sum, fundKey) => {
+                      const aumShare = calculateAUMShare(fundKey);
+                      return sum + STRATEGIES[fundKey].volatility * aumShare;
+                    }, 0);
+                    const volReduction = gameState.team.includes('quantDev') ? 0.65 : 1.0;
+                    return (weightedVol * volReduction).toFixed(1);
+                  })()}%
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="bg-slate-800/50 rounded-lg p-3">
+              <div className="flex items-center gap-2 text-slate-400 text-xs mb-1">
+                <DollarSign className="w-4 h-4" />
+                <span>Fee Structure</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div>
+                  <div className="text-xs text-slate-500">Mgmt</div>
+                  <div className="text-xs text-slate-500">Fee</div>
+                  <div className="text-lg font-bold text-blue-400">2.0%</div>
+                </div>
+                <div className="h-8 w-px bg-slate-700"></div>
+                <div>
+                  <div className="text-xs text-slate-500">Perf</div>
+                  <div className="text-xs text-slate-500">Fee</div>
+                  <div className="text-lg font-bold text-purple-400">20%</div>
+                </div>
+                <div className="h-8 w-px bg-slate-700"></div>
+                <div>
+                  <div className="text-xs text-slate-500">Hurdle</div>
+                  <div className="text-xs text-slate-500">Rate</div>
+                  <div className="text-lg font-bold text-cyan-400">8%</div>
+                </div>
+              </div>
+            </div>
+            <div className="bg-slate-800/50 rounded-lg p-3">
+              <div className="flex items-center gap-2 text-slate-400 text-xs mb-2">
+                <Activity className="w-4 h-4" />
+                <span>Market Regime</span>
+              </div>
+              <div className="grid grid-cols-2 gap-3 text-xs">
+                <div>
+                  <div className="text-slate-500 mb-1">Momentum</div>
+                  <div className={`font-semibold ${gameState.marketRegime.momentum > 0.5 ? 'text-emerald-400' : gameState.marketRegime.momentum < 0 ? 'text-red-400' : 'text-yellow-400'}`}>
+                    {gameState.marketRegime.momentum > 0 ? '+' : ''}{(gameState.marketRegime.momentum * 100).toFixed(0)}%
+                  </div>
+                </div>
+                <div>
+                  <div className="text-slate-500 mb-1">Liquidity</div>
+                  <div className={`font-semibold ${gameState.marketRegime.liquidity > 0.5 ? 'text-emerald-400' : gameState.marketRegime.liquidity < 0 ? 'text-red-400' : 'text-yellow-400'}`}>
+                    {gameState.marketRegime.liquidity > 0 ? '+' : ''}{(gameState.marketRegime.liquidity * 100).toFixed(0)}%
+                  </div>
+                </div>
+                <div>
+                  <div className="text-slate-500 mb-1">Volatility</div>
+                  <div className={`font-semibold ${gameState.marketRegime.volatility > 1.5 ? 'text-red-400' : gameState.marketRegime.volatility > 1 ? 'text-yellow-400' : 'text-emerald-400'}`}>
+                    {gameState.marketRegime.volatility.toFixed(1)}x
+                  </div>
+                </div>
+                <div>
+                  <div className="text-slate-500 mb-1">Fundraise</div>
+                  <div className={`font-semibold ${gameState.marketRegime.fundraising > 1 ? 'text-emerald-400' : gameState.marketRegime.fundraising < 0.8 ? 'text-red-400' : 'text-yellow-400'}`}>
+                    {gameState.marketRegime.fundraising.toFixed(1)}x
+                  </div>
+                </div>
+              </div>
+            </div>
+            <button onClick={() => setShowTrackRecord(true)} className="bg-slate-800/50 hover:bg-slate-700/50 rounded-lg p-3 transition-all cursor-pointer">
+              <div className="flex items-center gap-2 text-slate-400 text-xs mb-1">
+                <Trophy className="w-4 h-4" />
+                <span>Track Record</span>
+              </div>
+              <div className="mb-2">
+                <div className="text-lg font-bold text-cyan-400">
+                  {gameState.yearEndHistory.length} {gameState.yearEndHistory.length === 1 ? 'Year' : 'Years'}
+                </div>
+              </div>
+              <div className="flex items-center gap-2 text-xs">
+                {gameState.yearEndHistory.length > 0 ? <>
+                    <div>
+                      <div className="text-slate-500">Avg Return</div>
+                      <div className={`font-semibold ${(() => {
+                    const avgReturn = gameState.yearEndHistory.reduce((sum, r) => sum + r.annualReturn, 0) / gameState.yearEndHistory.length;
+                    return avgReturn >= 0 ? 'text-emerald-400' : 'text-red-400';
+                  })()}`}>
+                        {(() => {
+                      const avgReturn = gameState.yearEndHistory.reduce((sum, r) => sum + r.annualReturn, 0) / gameState.yearEndHistory.length;
+                      return `${avgReturn >= 0 ? '+' : ''}${(avgReturn * 100).toFixed(1)}%`;
+                    })()}
+                      </div>
+                    </div>
+                    <div className="h-8 w-px bg-slate-700"></div>
+                    <div>
+                      <div className="text-slate-500">Best Year</div>
+                      <div className="font-semibold text-emerald-400">
+                        {(() => {
+                      const best = Math.max(...gameState.yearEndHistory.map(r => r.annualReturn));
+                      return `${best >= 0 ? '+' : ''}${(best * 100).toFixed(1)}%`;
+                    })()}
+                      </div>
+                    </div>
+                  </> : <div className="text-slate-500">Click to view history</div>}
+              </div>
+            </button>
+            <div className="bg-slate-800/50 rounded-lg p-3">
+              <div className="flex items-center gap-2 text-slate-400 text-xs mb-2">
+                <Target className="w-4 h-4" />
+                <span>Win Condition</span>
+              </div>
+              <div className="space-y-1 text-xs">
+                <div className="flex items-center gap-2">
+                  <div className={`w-4 h-4 rounded flex items-center justify-center ${gameState.yearEndHistory.length >= 15 ? 'bg-emerald-500' : 'bg-slate-700'}`}>
+                    {gameState.yearEndHistory.length >= 15 && <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                    </svg>}
+                  </div>
+                  <span className={gameState.yearEndHistory.length >= 15 ? 'text-emerald-400' : 'text-slate-400'}>
+                    15+ Years Track Record
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className={`w-4 h-4 rounded flex items-center justify-center ${(() => {
+                  if (gameState.yearEndHistory.length === 0) return false;
+                  const avgReturn = gameState.yearEndHistory.reduce((sum, r) => sum + r.annualReturn, 0) / gameState.yearEndHistory.length;
+                  return avgReturn >= 0.20;
+                })() ? 'bg-emerald-500' : 'bg-slate-700'}`}>
+                    {(() => {
+                    if (gameState.yearEndHistory.length === 0) return false;
+                    const avgReturn = gameState.yearEndHistory.reduce((sum, r) => sum + r.annualReturn, 0) / gameState.yearEndHistory.length;
+                    return avgReturn >= 0.20;
+                  })() && <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                    </svg>}
+                  </div>
+                  <span className={(() => {
+                  if (gameState.yearEndHistory.length === 0) return 'text-slate-400';
+                  const avgReturn = gameState.yearEndHistory.reduce((sum, r) => sum + r.annualReturn, 0) / gameState.yearEndHistory.length;
+                  return avgReturn >= 0.20 ? 'text-emerald-400' : 'text-slate-400';
+                })()}>
+                    20%+ Average Returns
+                  </span>
+                </div>
+              </div>
+            </div>
+            {gameState.fundraisingBoostMonths > 0 && <div className="bg-gradient-to-r from-emerald-900/50 to-cyan-900/50 rounded-lg p-3 border border-emerald-500/30">
+                <div className="flex items-center gap-2 text-emerald-400 text-xs mb-1">
+                  <Zap className="w-4 h-4" />
+                  <span>Fundraising Boost</span>
+                </div>
+                <div className="text-xl font-bold text-emerald-300">{gameState.fundraisingBoostMonths} months left</div>
+              </div>}
+          </div>}
+        </div>
+      </div>
+      {}
+      <div className="max-w-7xl mx-auto px-4 py-6">
+        {}
+        <div className="flex gap-2 mb-6 overflow-x-auto">
+          {['overview', 'portfolio', 'operations', 'analytics'].map(tab => <button key={tab} onClick={() => setSelectedTab(tab)} className={`px-4 py-2 rounded-lg font-semibold transition-all whitespace-nowrap ${selectedTab === tab ? 'bg-blue-600 text-white' : 'bg-slate-800/50 text-slate-400 hover:bg-slate-800'}`}>
+              {tab.charAt(0).toUpperCase() + tab.slice(1)}
+            </button>)}
+        </div>
+        {}
+        {selectedTab === 'overview' && <div className="space-y-6">
+            <div className="grid md:grid-cols-2 gap-6">
+              <div className="bg-slate-900/50 backdrop-blur-xl rounded-2xl border border-slate-700/50 p-6">
+                <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+                  <TrendingUp className="w-5 h-5 text-emerald-400" />
+                  AUM History
+                </h3>
+                <ResponsiveContainer width="100%" height={250}>
+                  <AreaChart data={gameState.history}>
+                    <defs>
+                      <linearGradient id="aumGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                    <XAxis dataKey="month" stroke="#94a3b8" />
+                    <YAxis stroke="#94a3b8" tickFormatter={value => formatCurrency(value)} />
+                    <Tooltip contentStyle={{
+                  backgroundColor: '#1e293b',
+                  border: '1px solid #475569',
+                  borderRadius: '8px'
+                }} formatter={value => formatCurrency(value)} />
+                    <Area type="monotone" dataKey="aum" stroke="#10b981" fill="url(#aumGradient)" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="bg-slate-900/50 backdrop-blur-xl rounded-2xl border border-slate-700/50 p-6">
+                <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+                  <Activity className="w-5 h-5 text-blue-400" />
+                  Monthly Performance
+                </h3>
+                <ResponsiveContainer width="100%" height={250}>
+                  <BarChart data={gameState.history}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                    <XAxis dataKey="month" stroke="#94a3b8" />
+                    <YAxis stroke="#94a3b8" />
+                    <Tooltip contentStyle={{
+                  backgroundColor: '#1e293b',
+                  border: '1px solid #475569',
+                  borderRadius: '8px'
+                }} formatter={value => `${value.toFixed(2)}%`} />
+                    <Bar dataKey="performance" fill="#3b82f6" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+            <div className="grid md:grid-cols-2 gap-6">
+              <div className="bg-slate-900/50 backdrop-blur-xl rounded-2xl border border-slate-700/50 p-6">
+                <h3 className="text-lg font-bold mb-4">Quick Actions</h3>
+                <div className="space-y-3">
+                  <button onClick={() => setShowFundMenu(true)} className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-4 py-3 rounded-xl font-semibold transition-all flex items-center justify-center gap-2">
+                    <Building2 className="w-5 h-5" />
+                    Launch New Fund
+                  </button>
+                  <button onClick={() => setShowHireMenu(true)} className="w-full bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white px-4 py-3 rounded-xl font-semibold transition-all flex items-center justify-center gap-2">
+                    <Users className="w-5 h-5" />
+                    Hire Talent
+                  </button>
+                </div>
+              </div>
+              <div className="bg-slate-900/50 backdrop-blur-xl rounded-2xl border border-slate-700/50 p-6">
+                <h3 className="text-lg font-bold mb-4">Firm-wide Costs</h3>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-400">Talent Compensation</span>
+                    <span className="font-semibold text-red-400">
+                      {formatCurrency(gameState.team.reduce((sum, hire) => sum + HIRES[hire].cost / 12, 0))}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-400">Fund Operations</span>
+                    <span className="font-semibold text-red-400">
+                      {formatCurrency(gameState.activeFunds.reduce((sum, fundKey) => {
+                    const strategy = STRATEGIES[fundKey];
+                    const baseCost = strategy.cost / 12;
+                    const aumShare = calculateAUMShare(fundKey, allocationMethod);
+                    const aumForFund = gameState.aum * aumShare;
+                    const strategyCapacity = strategy.capacity * 1000000;
+                    const utilizationRatio = aumForFund / strategyCapacity;
+                    const aumScaleMultiplier = 1 + utilizationRatio * 10;
+                    const costAfterScaling = baseCost * aumScaleMultiplier;
+                    const finalCostBeforeDiscount = Math.max(baseCost, costAfterScaling);
+                    const cooDiscount = gameState.team.includes('coo') ? 0.5 : 1.0;
+                    const finalCost = finalCostBeforeDiscount * cooDiscount;
+                    return sum + getRoundedValue(finalCost);
+                  }, 0))}
+                    </span>
+                  </div>
+              <div className="flex justify-between items-center">
+                    <span className="text-slate-400">GP Operations</span>
+                    <span className="font-semibold text-red-400">
+                      {formatCurrency((() => {
+                    const baseAdminCost = 8000 + gameState.activeFunds.length * 4000;
+                    const increments = Math.floor((gameState.aum - 50000000) / 50000000);
+                    const aumMultiplier = 1 + increments * 0.10;
+                    let adminCosts = baseAdminCost * aumMultiplier;
+                    if (gameState.team.includes('cfo')) {
+                      adminCosts = adminCosts * 0.5;
+                    }
+                    return adminCosts;
+                  })())}
+                    </span>
+                  </div>
+                  {gameState.lastEventCost > 0 && <div className="flex justify-between items-center">
+                      <span className="text-slate-400">Event Losses</span>
+                      <span className="font-semibold text-red-400">
+                        {formatCurrency(gameState.lastEventCost)}
+                      </span>
+                    </div>}
+                  <div className="flex justify-between items-center pt-3 border-t border-slate-700">
+                    <span className="text-slate-400 font-bold">Total Monthly Costs</span>
+                    <span className="font-bold text-red-400">
+                      {formatCurrency((() => {
+                    const salaries = gameState.team.reduce((sum, hire) => sum + HIRES[hire].cost / 12, 0);
+                    const fundCosts = gameState.activeFunds.reduce((sum, fundKey) => {
+                      const strategy = STRATEGIES[fundKey];
+                      const baseCost = strategy.cost / 12;
+                      const aumShare = calculateAUMShare(fundKey, allocationMethod);
+                      const aumForFund = gameState.aum * aumShare;
+                      const strategyCapacity = strategy.capacity * 1000000;
+                      const utilizationRatio = aumForFund / strategyCapacity;
+                      const aumScaleMultiplier = 1 + utilizationRatio;
+                      const costAfterScaling = baseCost * aumScaleMultiplier;
+                      const finalCostBeforeDiscount = Math.max(baseCost, costAfterScaling);
+                      const cooDiscount = gameState.team.includes('coo') ? 0.5 : 1.0;
+                      const finalCost = finalCostBeforeDiscount * cooDiscount;
+                      return sum + getRoundedValue(finalCost);
+                    }, 0);
+                    const baseAdminCost = 8000 + gameState.activeFunds.length * 4000;
+                    const increments = Math.floor((gameState.aum - 50000000) / 50000000);
+                    const aumMultiplier = 1 + increments * 0.10;
+                    let adminCosts = baseAdminCost * aumMultiplier;
+                    if (gameState.team.includes('cfo')) {
+                      adminCosts = adminCosts * 0.5;
+                    }
+                    return salaries + fundCosts + adminCosts + gameState.lastEventCost;
+                  })())}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>}
+        {}
+        {selectedTab === 'portfolio' && <div className="space-y-6">
+            <div className="bg-slate-900/50 backdrop-blur-xl rounded-2xl border border-slate-700/50 p-6">
+              <h3 className="text-xl font-bold mb-4">AUM Allocation Settings</h3>
+              <div className="bg-slate-800/50 rounded-xl p-5 mb-6">
+                <div className="mb-4">
+                  <label className="text-slate-400 text-sm mb-2 block">Allocation Method</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    <button onClick={() => setAllocationMethod('capacity')} className={`px-4 py-2 rounded-lg font-semibold transition-all ${allocationMethod === 'capacity' ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-400 hover:bg-slate-600'}`}>
+                      Capacity
+                    </button>
+                    <button onClick={() => setAllocationMethod('volatility')} className={`px-4 py-2 rounded-lg font-semibold transition-all ${allocationMethod === 'volatility' ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-400 hover:bg-slate-600'}`}>
+                      Volatility
+                    </button>
+                    <button onClick={() => setAllocationMethod('returns')} className={`px-4 py-2 rounded-lg font-semibold transition-all ${allocationMethod === 'returns' ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-400 hover:bg-slate-600'}`}>
+                      Returns
+                    </button>
+                  </div>
+                  <div className="text-xs text-slate-500 mt-2">
+                    {allocationMethod === 'capacity' && 'Allocates AUM proportionally based on strategy capacity'}
+                    {allocationMethod === 'volatility' && 'Allocates more AUM to lower volatility strategies'}
+                    {allocationMethod === 'returns' && 'Allocates more AUM to higher expected return strategies'}
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="bg-slate-900/50 backdrop-blur-xl rounded-2xl border border-slate-700/50 p-6">
+              <h3 className="text-xl font-bold mb-4">Active Strategies</h3>
+              <div className="grid md:grid-cols-2 gap-4">
+                {gameState.activeFunds.map(fundKey => {
+              const strategy = STRATEGIES[fundKey];
+              const baseCost = strategy.cost / 12;
+              const aumShare = calculateAUMShare(fundKey, allocationMethod);
+              const aumForFund = gameState.aum * aumShare;
+              const strategyCapacity = strategy.capacity * 1000000;
+              const utilizationRatio = aumForFund / strategyCapacity;
+              const aumScaleMultiplier = 1 + utilizationRatio * 10;
+              const costAfterScaling = baseCost * aumScaleMultiplier;
+              const finalCostBeforeDiscount = Math.max(baseCost, costAfterScaling);
+              const cooDiscount = gameState.team.includes('coo') ? 0.5 : 1.0;
+              const finalCost = finalCostBeforeDiscount * cooDiscount;
+              const costChange = (finalCost - baseCost) / baseCost * 100;
+              const utilizationPercent = utilizationRatio * 100;
+              return <div key={fundKey} className="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="font-bold text-lg">{strategy.name}</h4>
+                        <Zap className="w-5 h-5 text-yellow-400" />
+                      </div>
+                      <div className="grid grid-cols-2 gap-3 text-sm">
+                        <div>
+                          <div className="text-slate-500">Expected Return</div>
+                          <div className="text-emerald-400 font-semibold">
+                            {gameState.team.includes('cio') ? (strategy.returnPA * 1.5).toFixed(1) : strategy.returnPA}% p.a.
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-slate-500">Volatility</div>
+                          <div className="text-yellow-400 font-semibold">
+                            {gameState.team.includes('quantDev') ? (strategy.volatility * 0.65).toFixed(1) : strategy.volatility}%
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-slate-500">Capacity</div>
+                          <div className="text-blue-400 font-semibold">{formatCurrency(strategy.capacity * 1000000)}</div>
+                        </div>
+                        <div>
+                          <div className="text-slate-500">AUM Allocated</div>
+                          <div className="text-cyan-400 font-semibold">{formatCurrency(aumForFund)}</div>
+                        </div>
+                      </div>
+                <div className="mt-3 pt-3 border-t border-slate-700">
+                    <div className="flex justify-between items-center text-sm mb-1">
+                      <span className="text-slate-500">Utilization</span>
+                      <span className={`font-semibold ${utilizationPercent > 100 ? 'text-red-400' : utilizationPercent > 80 ? 'text-yellow-400' : 'text-emerald-400'}`}>
+                        {utilizationPercent.toFixed(1)}%
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center text-sm mb-1">
+                      <span className="text-slate-500">Base Monthly Cost</span>
+                      <span className="text-slate-400">{formatCurrency(baseCost)}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-sm mb-1">
+                      <span className="text-slate-500">AUM Scale Multiplier</span>
+                      <span className="text-slate-400">{aumScaleMultiplier.toFixed(2)}x</span>
+                    </div>
+                    <div className="flex justify-between items-center text-sm mb-1">
+                      <span className="text-slate-500">Cost After Scaling</span>
+                      <span className="text-slate-400">{formatCurrency(finalCostBeforeDiscount)}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-sm mb-1">
+                      <span className="text-slate-500">
+                        {gameState.team.includes('coo') ? 'Final Cost (w/ COO)' : 'Final Cost'}
+                      </span>
+                      <span className={`font-semibold ${costChange > 0 ? 'text-red-400' : costChange < 0 ? 'text-emerald-400' : 'text-slate-300'}`}>
+                        {formatCurrency(finalCost)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-slate-500">Total Change</span>
+                      <span className={`font-semibold ${costChange > 0 ? 'text-red-400' : costChange < 0 ? 'text-emerald-400' : 'text-slate-300'}`}>
+                        {costChange >= 0 ? '+' : ''}{costChange.toFixed(1)}%
+                      </span>
+                    </div>
+                    {gameState.team.includes('coo') && <div className="text-xs text-emerald-400 mt-2 flex items-center gap-1">
+                      <Zap className="w-3 h-3" />
+                      COO reducing costs by 50%
+                    </div>}
+                  </div>
+                    </div>;
+            })}
+              </div>
+            </div>
+          </div>}
+        {}
+        {selectedTab === 'operations' && <div className="space-y-6">
+            <div className="bg-slate-900/50 backdrop-blur-xl rounded-2xl border border-slate-700/50 p-6">
+              <h3 className="text-xl font-bold mb-4">GP Operations Cost Breakdown</h3>
+              <div className="bg-slate-800/50 rounded-xl p-5 mb-6">
+                {(() => {
+              const baseCost = 8000;
+              const fundAddition = gameState.activeFunds.length * 4000;
+              const summedBaseCost = baseCost + fundAddition;
+              const increments = Math.floor((gameState.aum - 50000000) / 50000000);
+              const aumMultiplier = 1 + increments * 0.10;
+              const costAfterAUM = summedBaseCost * aumMultiplier;
+              const cfoDiscount = gameState.team.includes('cfo') ? 0.5 : 1.0;
+              const finalCost = costAfterAUM * cfoDiscount;
+              return <div className="space-y-3">
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate-400">Base Cost</span>
+                        <span className="font-semibold text-slate-300">{formatCurrency(baseCost)}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate-400">Active Funds ({gameState.activeFunds.length} × $4K)</span>
+                        <span className="font-semibold text-slate-300">+{formatCurrency(fundAddition)}</span>
+                      </div>
+                      <div className="h-px bg-slate-700"></div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate-400">Summed Base Cost</span>
+                        <span className="font-semibold text-blue-400">{formatCurrency(summedBaseCost)}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate-400">AUM Scaling ({aumMultiplier.toFixed(2)}x)</span>
+                        <span className="font-semibold text-yellow-400">{formatCurrency(costAfterAUM)}</span>
+                      </div>
+                      <div className="text-xs text-slate-500 ml-4">
+                        ±10% per ±$50M from $50M baseline
+                      </div>
+                      {gameState.team.includes('cfo') && <>
+                          <div className="h-px bg-slate-700"></div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-slate-400">CFO Discount (50%)</span>
+                            <span className="font-semibold text-emerald-400">-{formatCurrency(costAfterAUM - finalCost)}</span>
+                          </div>
+                        </>}
+                      <div className="h-px bg-slate-700"></div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate-300 font-bold">Final Monthly Cost</span>
+                        <span className="font-bold text-red-400">{formatCurrency(finalCost)}</span>
+                      </div>
+                    </div>;
+            })()}
+              </div>
+              <h3 className="text-xl font-bold mb-4">Your Team</h3>
+              {gameState.team.length === 0 ? <div className="text-center py-12 text-slate-400">
+                  <Users className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                  <p>No team members hired yet</p>
+                  <button onClick={() => setShowHireMenu(true)} className="mt-4 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-xl font-semibold transition-all">
+                    Hire Your First Team Member
+                  </button>
+                </div> : <div className="grid md:grid-cols-2 gap-4">
+                  {gameState.team.map(hireKey => {
+              const hire = HIRES[hireKey];
+              return <div key={hireKey} className="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
+                        <h4 className="font-bold text-lg mb-2">{hire.name}</h4>
+                        <div className="text-sm text-slate-400 mb-2">Annual Salary: {formatCurrency(hire.cost)}</div>
+                        <div className="text-sm text-emerald-400">
+                          {hire.description}
+                        </div>
+                      </div>;
+            })}
+                </div>}
+            </div>
+          </div>}
+        {}
+        {selectedTab === 'analytics' && <div className="space-y-6">
+            <div className="grid md:grid-cols-2 gap-6">
+              <div className="bg-slate-900/50 backdrop-blur-xl rounded-2xl border border-slate-700/50 p-6">
+                <h3 className="text-xl font-bold mb-4">LP Satisfaction Trend</h3>
+                <ResponsiveContainer width="100%" height={250}>
+                  <LineChart data={gameState.history}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                    <XAxis dataKey="month" stroke="#94a3b8" />
+                    <YAxis stroke="#94a3b8" domain={[0, 1]} tickFormatter={value => `${(value * 100).toFixed(0)}%`} />
+                    <Tooltip contentStyle={{
+                  backgroundColor: '#1e293b',
+                  border: '1px solid #475569',
+                  borderRadius: '8px'
+                }} formatter={value => `${(value * 100).toFixed(0)}%`} />
+                    <Line type="monotone" dataKey="lpSat" stroke="#8b5cf6" strokeWidth={2} dot={false} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="bg-slate-900/50 backdrop-blur-xl rounded-2xl border border-slate-700/50 p-6">
+                <h3 className="text-xl font-bold mb-4">Compliance Score</h3>
+                <ResponsiveContainer width="100%" height={250}>
+                  <LineChart data={gameState.history}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                    <XAxis dataKey="month" stroke="#94a3b8" />
+                    <YAxis stroke="#94a3b8" domain={[0, 1]} tickFormatter={value => `${(value * 100).toFixed(0)}%`} />
+                    <Tooltip contentStyle={{
+                  backgroundColor: '#1e293b',
+                  border: '1px solid #475569',
+                  borderRadius: '8px'
+                }} formatter={value => `${(value * 100).toFixed(0)}%`} />
+                    <Line type="monotone" dataKey="compliance" stroke="#f59e0b" strokeWidth={2} dot={false} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>}
+      </div>
+    </div>;
+}
